@@ -3,35 +3,88 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 
 const app = express();
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
+// MongoDB Connection
 mongoose.connect("mongodb://127.0.0.1:27017/todoDB")
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.log(err));
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch(err => console.log("❌ DB Error:", err));
 
-// Schema
-const TaskSchema = new mongoose.Schema({
-  task: String
+// ✅ Updated Schema (added completed field)
+const Task = mongoose.model("Task", {
+  text: String,
+  completed: {
+    type: Boolean,
+    default: false
+  }
 });
 
-const Task = mongoose.model("Task", TaskSchema);
 
-// Routes
+// ✅ CREATE (Add Task)
+app.post("/add", async (req, res) => {
+  try {
+    const { text } = req.body;
 
-// GET all tasks
+    if (!text || text.trim() === "") {
+      return res.json({ message: "Empty task ignored" });
+    }
+
+    const task = new Task({ text });
+    await task.save();
+
+    res.json({ message: "Task added" });
+  } catch (err) {
+    console.log(err);
+    res.json({ message: "Error handled" });
+  }
+});
+
+
+// ✅ READ (Get All Tasks)
 app.get("/tasks", async (req, res) => {
-  const tasks = await Task.find();
-  res.json(tasks);
+  try {
+    const tasks = await Task.find();
+    res.json(tasks);
+  } catch (err) {
+    res.json([]);
+  }
 });
 
-// POST new task
-app.post("/tasks", async (req, res) => {
-  const newTask = new Task(req.body);
-  await newTask.save();
-  res.json(newTask);
+
+// ✅ UPDATE TASK (Edit text or mark complete)
+app.put("/update/:id", async (req, res) => {
+  try {
+    const { text, completed } = req.body;
+
+    await Task.findByIdAndUpdate(req.params.id, {
+      text,
+      completed
+    });
+
+    res.json({ message: "Task updated" });
+  } catch (err) {
+    console.log(err);
+    res.json({ message: "Update failed" });
+  }
 });
 
-// Start server
-app.listen(5000, () => console.log("Server running on port 5000"));
+
+// ✅ DELETE TASK
+app.delete("/delete/:id", async (req, res) => {
+  try {
+    await Task.findByIdAndDelete(req.params.id);
+    res.json({ message: "Task deleted" });
+  } catch (err) {
+    console.log(err);
+    res.json({ message: "Delete failed" });
+  }
+});
+
+
+// Server
+app.listen(5000, () => {
+  console.log("🚀 Server running on port 5000");
+});
